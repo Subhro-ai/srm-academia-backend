@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.portal.academia_portal.dto.AttendanceDetail;
 import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.MarkDetail;
+import com.portal.academia_portal.dto.UserInfo;
 
 
 @RestController
@@ -39,6 +40,11 @@ public class DataController {
     @GetMapping("/timetable")
     public List<DaySchedule> getTimetable(@RequestHeader("Cookie") String cookie) {
         return dataService.getTimetable(cookie);
+    }
+    
+    @GetMapping("/user-info")
+    public UserInfo getUserInfo(@RequestHeader("Cookie") String cookie) {
+        return dataService.getUserInfo(cookie);
     }
     
     

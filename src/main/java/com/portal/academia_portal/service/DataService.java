@@ -6,6 +6,7 @@ import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.Mark;
 import com.portal.academia_portal.dto.MarkDetail;
 import com.portal.academia_portal.dto.TimetableData;
+import com.portal.academia_portal.dto.UserInfo;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -261,9 +262,56 @@ public class DataService {
 
 
     private String getTimetableUrl() {
-    LocalDate currentDate = LocalDate.now();
-    int currentYear = currentDate.getYear();
-    String academicYear = (currentYear - 2) + "_" + String.valueOf(currentYear - 1).substring(2);
-    return "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Time_Table_" + academicYear;
+        LocalDate currentDate = LocalDate.now();
+        int currentYear = currentDate.getYear();
+        String academicYear = (currentYear - 2) + "_" + String.valueOf(currentYear - 1).substring(2);
+        return "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Time_Table_" + academicYear;
+    }
+
+    public UserInfo getUserInfo(String cookie) {
+String timetableUrl = getTimetableUrl(); 
+
+    String rawHtml = webClient.get()
+            .uri(timetableUrl)
+            .header(HttpHeaders.COOKIE, cookie)
+            .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+            .retrieve()
+            .bodyToMono(String.class)
+            .block();
+
+    if (rawHtml == null) {
+        throw new IllegalStateException("Did not receive a response from the user info page.");
+    }
+
+    String cleanHtml = decodeHtml(extractEncodedContent(rawHtml));
+    Document doc = Jsoup.parse(cleanHtml);
+
+
+    UserInfo userInfo = new UserInfo();
+
+
+    userInfo.setRegNumber(getTextFromTableRow(doc, "Registration Number:"));
+    userInfo.setName(getTextFromTableRow(doc, "Name:"));
+    userInfo.setProgram(getTextFromTableRow(doc, "Program:"));
+    userInfo.setDepartment(getTextFromTableRow(doc, "Department:").split("-")[0].trim());
+    userInfo.setSection(getTextFromTableRow(doc, "Department:").replaceAll(".*Section|\\(|\\)", "").trim());
+    userInfo.setSemester(getTextFromTableRow(doc, "Semester:"));
+    userInfo.setBatch(getTextFromTableRow(doc, "Batch:"));
+
+    userInfo.setMobile(getTextFromTableRow(doc, "Mobile:") != null ? getTextFromTableRow(doc, "Mobile:") : "N/A");
+
+
+    return userInfo;
 }
+
+
+private String getTextFromTableRow(Document doc, String label) {
+    Element cell = doc.selectFirst("td:contains(" + label + ")");
+    if (cell != null && cell.nextElementSibling() != null) {
+        return cell.nextElementSibling().text().trim();
+    }
+    return ""; 
 }
+
+}
+
