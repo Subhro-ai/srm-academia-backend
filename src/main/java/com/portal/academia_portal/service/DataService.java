@@ -1,7 +1,11 @@
 package com.portal.academia_portal.service;
 import com.portal.academia_portal.dto.AttendanceDetail;
+import com.portal.academia_portal.dto.CourseInfo;
+import com.portal.academia_portal.dto.CourseSlot;
+import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.Mark;
 import com.portal.academia_portal.dto.MarkDetail;
+import com.portal.academia_portal.dto.TimetableData;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -15,8 +19,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -168,4 +175,95 @@ public class DataService {
 
         return marksList;
     }
+
+    public List<DaySchedule> getTimetable(String cookie) {
+    String timetableUrl = getTimetableUrl();
+
+    String rawHtml = webClient.get()
+            .uri(timetableUrl)
+            .header(HttpHeaders.COOKIE, cookie)
+            .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+            .retrieve()
+            .bodyToMono(String.class)
+            .block();
+
+    if (rawHtml == null) {
+        throw new IllegalStateException("Did not receive a response from the timetable page.");
+    }
+
+    String cleanHtml = decodeHtml(extractEncodedContent(rawHtml));
+    Document doc = Jsoup.parse(cleanHtml);
+
+
+    String batchText = doc.select("td:contains(Batch:)").next().text();
+    int batch = Integer.parseInt(batchText.trim());
+
+
+    Map<String, CourseInfo> slotMap = new HashMap<>();
+    Elements courseRows = doc.select(".course_tbl tr");
+
+    for (int i = 1; i < courseRows.size(); i++) { 
+        Element row = courseRows.get(i);
+        Elements cols = row.select("td");
+        if (cols.size() < 11) continue;
+
+        CourseInfo info = new CourseInfo(
+                cols.get(2).text().trim(),
+                cols.get(1).text().trim(),
+                cols.get(6).text().trim(),
+                cols.get(5).text().trim(),
+                cols.get(10).text().trim()
+        );
+
+        String[] slots = cols.get(8).text().trim().split("-");
+        for (String slot : slots) {
+            if (!slot.trim().isEmpty()) {
+                slotMap.put(slot.trim(), info);
+            }
+        }
+    }
+
+
+    List<DaySchedule> timetable = new ArrayList<>();
+    List<TimetableData.DayDefinition> scheduleForBatch = TimetableData.BATCH_SLOTS.get(batch);
+
+    for (TimetableData.DayDefinition dayDef : scheduleForBatch) {
+        DaySchedule daySchedule = new DaySchedule();
+        daySchedule.setDayOrder(dayDef.dayOrder());
+        
+        List<CourseSlot> courseSlots = new ArrayList<>();
+        for (int i = 0; i < dayDef.slots().size(); i++) {
+            String slotName = dayDef.slots().get(i);
+            CourseInfo courseInfo = slotMap.get(slotName);
+
+            CourseSlot courseSlot = new CourseSlot();
+            courseSlot.setSlot(slotName);
+            courseSlot.setTime(dayDef.time().get(i));
+
+            if (courseInfo != null) {
+                courseSlot.setClass(true);
+                courseSlot.setCourseTitle(courseInfo.courseTitle());
+                courseSlot.setCourseCode(courseInfo.courseCode());
+                courseSlot.setCourseType(courseInfo.courseType());
+                courseSlot.setCourseCategory(courseInfo.courseCategory());
+                courseSlot.setCourseRoomNo(courseInfo.courseRoomNo());
+            } else {
+                courseSlot.setClass(false);
+            }
+            courseSlots.add(courseSlot);
+        }
+        daySchedule.setClasses(courseSlots);
+        timetable.add(daySchedule);
+    }
+
+    return timetable;
+}
+
+
+    private String getTimetableUrl() {
+    LocalDate currentDate = LocalDate.now();
+    int currentYear = currentDate.getYear();
+    String academicYear = (currentYear - 2) + "_" + String.valueOf(currentYear - 1).substring(2);
+    return "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Time_Table_" + academicYear;
+}
 }

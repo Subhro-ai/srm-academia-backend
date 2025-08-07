@@ -24,7 +24,7 @@ public class AuthService {
     private final WebClient webClient;
     private static final String LOGIN_PAGE_URL = "https://academia.srmist.edu.in/accounts/p/10002227248/signin?hide_fp=true&servicename=ZohoCreator&service_language=en&css_url=/49910842/academia-academic-services/downloadPortalCustomCss/login&dcc=true&serviceurl=https%3A%2F%2Facademia.srmist.edu.in%2Fportal%2Facademia-academic-services%2FredirectFromLogin";
 
-    // --- THIS IS THE FIX: Store the session details to reuse them ---
+
     private String sessionCookies;
     private String sessionCsrfToken;
 
@@ -45,7 +45,7 @@ public class AuthService {
             throw new IllegalStateException("Failed to get a valid response from the main login page.");
         }
 
-        // Store the cookies and token in our class fields
+
         this.sessionCookies = String.join("; ", initialResponse.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE));
         Pattern pattern = Pattern.compile("iamcsr=([^;]+)");
         Matcher matcher = pattern.matcher(this.sessionCookies);
@@ -85,9 +85,9 @@ public class AuthService {
                 .host("academia.srmist.edu.in")
                 .path("/accounts/p/40-10002227248/signin/v2/primary/{identifier}/password")
                 .queryParam("digest", request.getDigest())
-                // ... other query params ...
+
                 .build(request.getIdentifier()))
-            // --- THIS IS THE FIX: Reuse the session details from the first step ---
+
             .header(HttpHeaders.COOKIE, this.sessionCookies)
             .header("x-zcsrf-token", "iamcsrcoo=" + this.sessionCsrfToken)
             .header("Referer", LOGIN_PAGE_URL)
