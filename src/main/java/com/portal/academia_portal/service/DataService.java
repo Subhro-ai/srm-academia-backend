@@ -1,5 +1,7 @@
 package com.portal.academia_portal.service;
 import com.portal.academia_portal.dto.AttendanceDetail;
+import com.portal.academia_portal.dto.Mark;
+import com.portal.academia_portal.dto.MarkDetail;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -101,5 +103,69 @@ public class DataService {
 
             throw new RuntimeException("Error decoding HTML", e);
         }
+    }
+
+
+    public List<MarkDetail> getMarks(String cookie) {
+        String attendanceUrl = "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Attendance";
+        String rawHtml = webClient.get()
+                .uri(attendanceUrl)
+                .header(HttpHeaders.COOKIE, cookie)
+                .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        if (rawHtml == null) {
+            throw new IllegalStateException("Did not receive a response from the attendance page.");
+        }
+
+        String encodedHtml = extractEncodedContent(rawHtml);
+        if (encodedHtml.isEmpty()) {
+            throw new IllegalStateException("Could not extract encoded HTML from the response.");
+        }
+        String cleanHtml = decodeHtml(encodedHtml);
+        Document doc = Jsoup.parse(cleanHtml);
+        List<MarkDetail> marksList = new ArrayList<>();
+        Elements tableRows = doc.select("table[border=1][align=center] > tbody > tr");
+        for(int i = 0; i < tableRows.size(); i++) {
+            Element row = tableRows.get(i);
+            Elements cols = row.select("td");
+            if (cols.size() < 3) {
+                continue; 
+            }
+            MarkDetail markDetail = new MarkDetail();
+            markDetail.setCourse(cols.get(0).text().trim());
+            markDetail.setCategory(cols.get(1).text().trim());
+            Element marksInnerTable = cols.get(2).selectFirst("table");
+            if (marksInnerTable != null) {
+                List<Mark> individualMarks = new ArrayList<>();
+                Elements markCells = marksInnerTable.select("td");
+
+                for (Element markCell : markCells) {
+                    String strongText = markCell.select("strong").text().trim();
+                    if (strongText.isEmpty() || !strongText.contains("/")) {
+                        continue;
+                    }
+
+                    String[] parts = strongText.split("/");
+                    String examName = parts[0].trim();
+                    double maxMark = Double.parseDouble(parts[1].trim());
+
+                    String obtainedText = markCell.ownText().trim();
+                    double obtainedMark = Double.parseDouble(obtainedText);
+
+                    Mark mark = new Mark();
+                    mark.setExam(examName);
+                    mark.setMaxMark(maxMark);
+                    mark.setObtained(obtainedMark);
+                    individualMarks.add(mark);
+                }
+                markDetail.setMarks(individualMarks);
+            }
+            marksList.add(markDetail);
+        }
+
+        return marksList;
     }
 }
