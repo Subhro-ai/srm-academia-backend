@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import com.portal.academia_portal.dto.UserLookupResponse;
+
 
 @RestController
 @RequestMapping("/api/auth") // Base path for all auth-related endpoints
@@ -22,8 +24,8 @@ public class AuthController {
     }
 
     @PostMapping("/login-step1")
-    public String loginStep1(@RequestBody LoginStep1Request request) {
-        return "Login Step 1 initiated for user: " + request.getUsername();
+    public UserLookupResponse loginStep1(@RequestBody LoginStep1Request request) {
+        return authService.initiateLogin(request.getUsername());
     }
 
 }
