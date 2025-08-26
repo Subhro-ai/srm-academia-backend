@@ -1,4 +1,5 @@
 package com.portal.academia_portal.dto;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class CourseSlot {
     private String slot;
@@ -19,7 +20,7 @@ public class CourseSlot {
     public void setSlot(String slot) {
         this.slot = slot;
     }
-
+    @JsonProperty("isClass")
     public boolean isClass() {
         return isClass;
     }

@@ -1,22 +1,4 @@
 package com.portal.academia_portal.service;
-import com.portal.academia_portal.dto.AttendanceDetail;
-import com.portal.academia_portal.dto.CourseInfo;
-import com.portal.academia_portal.dto.CourseSlot;
-import com.portal.academia_portal.dto.DaySchedule;
-import com.portal.academia_portal.dto.Mark;
-import com.portal.academia_portal.dto.MarkDetail;
-import com.portal.academia_portal.dto.TimetableData;
-import com.portal.academia_portal.dto.UserInfo;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +9,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import com.portal.academia_portal.dto.AttendanceDetail;
+import com.portal.academia_portal.dto.CourseInfo;
+import com.portal.academia_portal.dto.CourseSlot;
+import com.portal.academia_portal.dto.DaySchedule;
+import com.portal.academia_portal.dto.Mark;
+import com.portal.academia_portal.dto.MarkDetail;
+import com.portal.academia_portal.dto.TimetableData;
+import com.portal.academia_portal.dto.UserInfo;
 
 @Service
 public class DataService {
@@ -195,27 +195,33 @@ public class DataService {
     String cleanHtml = decodeHtml(extractEncodedContent(rawHtml));
     Document doc = Jsoup.parse(cleanHtml);
 
-
-    String batchText = doc.select("td:contains(Batch:)").next().text();
+    String batchText = getTextFromTableRow(doc, "Batch:");
+    if (batchText == null || batchText.trim().isEmpty()) {
+        throw new IllegalStateException("Could not determine batch from the timetable page.");
+    }
     int batch = Integer.parseInt(batchText.trim());
 
-
     Map<String, CourseInfo> slotMap = new HashMap<>();
-    Elements courseRows = doc.select(".course_tbl tr");
+    
+    // --- Start of Corrected Logic ---
+    
+    // 1. Select the table and get ALL table cells (td), skipping the headers
+    Elements allCells = doc.select(".course_tbl td");
+    
+    // 2. Process the cells in chunks of 11, starting after the header row (index 11)
+    for (int i = 11; i < allCells.size(); i += 11) {
+        Elements cols = new Elements(allCells.subList(i, Math.min(i + 11, allCells.size())));
+        if (cols.size() < 11) continue; // Ensure we have a full set of columns for a course
 
-    for (int i = 1; i < courseRows.size(); i++) { 
-        Element row = courseRows.get(i);
-        Elements cols = row.select("td");
-        if (cols.size() < 11) continue;
-
+        // 3. Use the correct column indexes to create the CourseInfo object
         CourseInfo info = new CourseInfo(
-                cols.get(2).text().trim(),
-                cols.get(1).text().trim(),
-                cols.get(6).text().trim(),
-                cols.get(5).text().trim(),
-                cols.get(10).text().trim()
+                cols.get(2).text().trim(), // Course Title
+                cols.get(1).text().trim(), // Course Code
+                cols.get(6).text().trim(), // Course Type
+                cols.get(5).text().trim(), // Category
+                cols.get(9).text().trim()  // Room No.
         );
-
+        
         String[] slots = cols.get(8).text().trim().split("-");
         for (String slot : slots) {
             if (!slot.trim().isEmpty()) {
@@ -223,23 +229,28 @@ public class DataService {
             }
         }
     }
-
+    
+    // --- End of Corrected Logic ---
 
     List<DaySchedule> timetable = new ArrayList<>();
     List<TimetableData.DayDefinition> scheduleForBatch = TimetableData.BATCH_SLOTS.get(batch);
+
+    if (scheduleForBatch == null) {
+        throw new IllegalStateException("No schedule definition found for batch: " + batch);
+    }
 
     for (TimetableData.DayDefinition dayDef : scheduleForBatch) {
         DaySchedule daySchedule = new DaySchedule();
         daySchedule.setDayOrder(dayDef.dayOrder());
         
         List<CourseSlot> courseSlots = new ArrayList<>();
-        for (int i = 0; i < dayDef.slots().size(); i++) {
-            String slotName = dayDef.slots().get(i);
+        for (int j = 0; j < dayDef.slots().size(); j++) {
+            String slotName = dayDef.slots().get(j);
             CourseInfo courseInfo = slotMap.get(slotName);
 
             CourseSlot courseSlot = new CourseSlot();
             courseSlot.setSlot(slotName);
-            courseSlot.setTime(dayDef.time().get(i));
+            courseSlot.setTime(dayDef.time().get(j));
 
             if (courseInfo != null) {
                 courseSlot.setClass(true);
