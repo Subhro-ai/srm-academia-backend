@@ -9,11 +9,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import com.portal.academia_portal.dto.TotalAttendance;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -26,12 +27,15 @@ import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.Mark;
 import com.portal.academia_portal.dto.MarkDetail;
 import com.portal.academia_portal.dto.TimetableData;
+import com.portal.academia_portal.dto.TotalAttendance;
 import com.portal.academia_portal.dto.UserInfo;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 @Service
 public class DataService {
 
     private final WebClient webClient;
+    private static final Logger logger = LoggerFactory.getLogger(DataService.class);
 
     @Autowired
     public DataService(WebClient webClient) {
@@ -52,7 +56,7 @@ public class DataService {
         if (rawHtml == null) {
             throw new IllegalStateException("Did not receive a response from the attendance page.");
         }
-
+        logger.debug("Raw HTML from attendance page: {}", rawHtml);
         String encodedHtml = extractEncodedContent(rawHtml);
         if (encodedHtml.isEmpty()) {
             throw new IllegalStateException("Could not extract encoded HTML from the response.");
@@ -323,6 +327,19 @@ private String getTextFromTableRow(Document doc, String label) {
     }
     return ""; 
 }
-
+public TotalAttendance getTotalAttendancePercentage(String cookie) {
+    List<AttendanceDetail> attendanceDetails = getAttendance(cookie);
+    int totalConducted = 0;
+    int totalAbsent = 0;
+    for (AttendanceDetail detail : attendanceDetails) {
+        totalConducted += detail.getCourseConducted();
+        totalAbsent += detail.getCourseAbsent();
+    }
+    double totalAttendancePercentage = 0;
+    if (totalConducted > 0) {
+        totalAttendancePercentage = ((double) (totalConducted - totalAbsent) / totalConducted) * 100;
+    }
+    return new TotalAttendance(totalAttendancePercentage);
+}
 }
 

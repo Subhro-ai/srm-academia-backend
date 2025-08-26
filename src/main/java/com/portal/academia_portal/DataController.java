@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.portal.academia_portal.dto.AttendanceDetail;
 import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.MarkDetail;
+import com.portal.academia_portal.dto.TotalAttendance;
 import com.portal.academia_portal.dto.UserInfo;
 import com.portal.academia_portal.service.DataService;
 
@@ -44,5 +45,10 @@ public class DataController {
     @GetMapping("/user-info")
     public UserInfo getUserInfo(@RequestHeader("X-Academia-Auth") String cookie) {
         return dataService.getUserInfo(cookie);
+    }
+
+    @GetMapping("/total-attendance")
+    public TotalAttendance getTotalAttendance(@RequestHeader("Cookie") String cookie) {
+        return dataService.getTotalAttendancePercentage(cookie);
     }
 }
