@@ -13,6 +13,18 @@ public class AttendanceDetail {
         return courseCode;
     }
 
+    public void printDetails() {
+        System.out.println("Course Code: " + courseCode);
+        System.out.println("Course Title: " + courseTitle);
+        System.out.println("Course Category: " + courseCategory);
+        System.out.println("Course Faculty: " + courseFaculty);
+        System.out.println("Course Slot: " + courseSlot);
+        System.out.println("Course Attendance: " + courseAttendance);
+        System.out.println("Course Conducted: " + courseConducted);
+        System.out.println("Course Absent: " + courseAbsent);
+        System.out.println("------------------------------");
+    }
+
     public void setCourseCode(String courseCode) {
         this.courseCode = courseCode;
     }

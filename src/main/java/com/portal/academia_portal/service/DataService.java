@@ -100,7 +100,9 @@ public class DataService {
 
       attendanceList.add(detail);
     }
-    System.out.println(attendanceList);
+    for(AttendanceDetail detail : attendanceList) {
+        detail.printDetails();
+    }
     return attendanceList;
   }
 
@@ -380,17 +382,13 @@ public class DataService {
 
   public TotalAttendance getTotalAttendancePercentage(String cookie) {
     List<AttendanceDetail> attendanceDetails = getAttendance(cookie);
-    int totalConducted = 0;
-    int totalAbsent = 0;
+    float totalPercentage = 0;
+    int count = 0;
     for (AttendanceDetail detail : attendanceDetails) {
-      totalConducted += detail.getCourseConducted();
-      totalAbsent += detail.getCourseAbsent();
+      totalPercentage += Float.parseFloat(detail.getCourseAttendance().replace("%", ""));
+      count++;
     }
-    double totalAttendancePercentage = 0;
-    if (totalConducted > 0) {
-      totalAttendancePercentage =
-        ((double) (totalConducted - totalAbsent) / totalConducted) * 100;
-    }
+    float totalAttendancePercentage = count == 0 ? 0 : totalPercentage / count;
     return new TotalAttendance(totalAttendancePercentage);
   }
 }
