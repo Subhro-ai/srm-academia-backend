@@ -100,9 +100,6 @@ public class DataService {
 
       attendanceList.add(detail);
     }
-    for(AttendanceDetail detail : attendanceList) {
-        detail.printDetails();
-    }
     return attendanceList;
   }
 
@@ -135,76 +132,92 @@ public class DataService {
   }
 
   public List<MarkDetail> getMarks(String cookie) {
-    String attendanceUrl =
-      "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Attendance";
-    String rawHtml = webClient
-      .get()
-      .uri(attendanceUrl)
-      .header(HttpHeaders.COOKIE, cookie)
-      .header(
-        HttpHeaders.USER_AGENT,
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
-      )
-      .retrieve()
-      .bodyToMono(String.class)
-      .block();
+    String attendanceUrl = "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/My_Attendance";
+    String rawHtml = webClient.get().uri(attendanceUrl).header(HttpHeaders.COOKIE, cookie).header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36").retrieve().bodyToMono(String.class).block();
 
     if (rawHtml == null) {
-      throw new IllegalStateException(
-        "Did not receive a response from the attendance page."
-      );
+        throw new IllegalStateException("Did not receive a response from the attendance page.");
     }
 
     String encodedHtml = extractEncodedContent(rawHtml);
     if (encodedHtml.isEmpty()) {
-      throw new IllegalStateException(
-        "Could not extract encoded HTML from the response."
-      );
+        throw new IllegalStateException("Could not extract encoded HTML from the response.");
     }
+
     String cleanHtml = decodeHtml(encodedHtml);
     Document doc = Jsoup.parse(cleanHtml);
     List<MarkDetail> marksList = new ArrayList<>();
-    Elements tableRows = doc.select("table[border=1][align=center] > tbody > tr");
-    for (int i = 0; i < tableRows.size(); i++) {
-      Element row = tableRows.get(i);
-      Elements cols = row.select("td");
-      if (cols.size() < 3) {
-        continue;
-      }
-      MarkDetail markDetail = new MarkDetail();
-      markDetail.setCourse(cols.get(0).text().trim());
-      markDetail.setCategory(cols.get(1).text().trim());
-      Element marksInnerTable = cols.get(2).selectFirst("table");
-      if (marksInnerTable != null) {
-        List<Mark> individualMarks = new ArrayList<>();
-        Elements markCells = marksInnerTable.select("td");
+    
+    // Find the paragraph that precedes the marks table
+    Element p = doc.select("p:contains(Internal Marks Detail)").first();
+    Element marksTable = null;
+    if (p != null) {
+        marksTable = p.nextElementSibling();
+    }
+    
+    if (marksTable == null || !marksTable.tagName().equals("table")) {
+        return marksList;
+    }
 
-        for (Element markCell : markCells) {
-          String strongText = markCell.select("strong").text().trim();
-          if (strongText.isEmpty() || !strongText.contains("/")) {
+    Elements rows = marksTable.select("tr");
+
+    for (int i = 1; i < rows.size(); i++) { // Start from 1 to skip header row
+        Element row = rows.get(i);
+        Elements cells = row.select("td");
+        if (cells.size() < 3) continue;
+
+        String course = cells.get(0).text().trim();
+        String category = cells.get(1).text().trim();
+        Element marksCell = cells.get(2);
+        
+        if (course.isEmpty() || category.isEmpty() || marksCell.select("table").isEmpty()) {
             continue;
-          }
+        }
 
-          String[] parts = strongText.split("/");
-          String examName = parts[0].trim();
-          double maxMark = Double.parseDouble(parts[1].trim());
+        MarkDetail markDetail = new MarkDetail();
+        markDetail.setCourse(course);
+        markDetail.setCategory(category);
 
-          String obtainedText = markCell.ownText().trim();
-          double obtainedMark = Double.parseDouble(obtainedText);
+        List<Mark> individualMarks = new ArrayList<>();
+        Elements markTds = marksCell.select("table td");
+        
+        for (Element markTd : markTds) {
+            String strongText = markTd.select("strong").text().trim();
+            if (strongText.isEmpty() || !strongText.contains("/")) continue;
 
-          Mark mark = new Mark();
-          mark.setExam(examName);
-          mark.setMaxMark(maxMark);
-          mark.setObtained(obtainedMark);
-          individualMarks.add(mark);
+            String[] parts = strongText.split("/");
+            if (parts.length < 2) continue;
+
+            String examName = parts[0].trim();
+            String maxMarkStr = parts[1].trim();
+            
+            // Clone the td element to avoid modifying the original
+            Element temp = markTd.clone();
+            temp.select("strong").remove();
+            String obtainedText = temp.text().trim();
+
+
+            if (!obtainedText.isEmpty() && !maxMarkStr.isEmpty()) {
+                try {
+                    double obtainedMark = Double.parseDouble(obtainedText);
+                    double maxMark = Double.parseDouble(maxMarkStr);
+
+                    Mark mark = new Mark();
+                    mark.setExam(examName);
+                    mark.setMaxMark(maxMark);
+                    mark.setObtained(obtainedMark);
+                    individualMarks.add(mark);
+                } catch (NumberFormatException e) {
+                    System.err.println("Could not parse mark: " + obtainedText + " or " + maxMarkStr);
+                }
+            }
         }
         markDetail.setMarks(individualMarks);
-      }
-      marksList.add(markDetail);
+        marksList.add(markDetail);
     }
 
     return marksList;
-  }
+}
 
   public List<DaySchedule> getTimetable(String cookie) {
     String timetableUrl = getTimetableUrl();

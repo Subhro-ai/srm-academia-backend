@@ -11,6 +11,21 @@ public class MarkDetail {
         return course;
     }
 
+    public void printDetails() {
+        System.out.println("Course: " + course);
+        System.out.println("Category: " + category);
+        System.out.println("Marks:");
+        if (marks != null) {
+            System.out.println("PRINTING MARKS");
+            for (Mark mark : marks) {
+                System.out.println("  - " + mark.getObtained() + ": " + mark.getMaxMark());
+            }
+        } else {
+            System.out.println("  No marks available.");
+        }
+        System.out.println("------------------------------");
+    }
+
     public void setCourse(String course) {
         this.course = course;
     }
