@@ -48,7 +48,7 @@ public class DataController {
     }
 
     @GetMapping("/total-attendance")
-    public TotalAttendance getTotalAttendance(@RequestHeader("Cookie") String cookie) {
-        return dataService.getTotalAttendancePercentage(cookie);
-    }
+public TotalAttendance getTotalAttendance(@RequestHeader("X-Academia-Auth") String cookie) {
+    return dataService.getTotalAttendancePercentage(cookie);
+}
 }
