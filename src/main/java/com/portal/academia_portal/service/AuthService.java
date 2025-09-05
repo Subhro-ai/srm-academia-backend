@@ -2,6 +2,9 @@ package com.portal.academia_portal.service;
 
 import com.portal.academia_portal.dto.LoginStep2Request;
 import com.portal.academia_portal.dto.UserLookupResponse;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -104,5 +107,15 @@ public class AuthService {
         }
 
         throw new IllegalStateException("Login failed: Could not retrieve final authentication cookies.");
+    }
+    public Mono<Void> logout(String cookie) {
+        String logoutUrl = "https://academia.srmist.edu.in/accounts/logout?serviceurl=https%3A%2F%2Facademia.srmist.edu.in%2F";
+        return webClient.get()
+                .uri(logoutUrl)
+                .header(HttpHeaders.COOKIE, cookie)
+                .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+                .retrieve()
+                .toBodilessEntity()
+                .then();
     }
 }

@@ -249,7 +249,25 @@ public class DataService {
         "Could not determine batch from the timetable page."
       );
     }
-    int batch = Integer.parseInt(batchText.trim());
+    System.out.println("Batch Text: " + batchText);
+    int batch;
+    try {
+        String batchNumberStr;
+        String[] batchParts = batchText.trim().split("/");
+        if (batchParts.length > 1) {
+
+            batchNumberStr = batchParts[1];
+        } else {
+
+            batchNumberStr = batchParts[0];
+        }
+        batch = Integer.parseInt(batchNumberStr);
+    } catch (NumberFormatException e) {
+        logger.error("Could not parse batch number from text: '" + batchText + "'. Defaulting to batch 1.", e);
+
+        batch = 1;
+    }
+
 
     Map<String, CourseInfo> slotMap = new HashMap<>();
 
@@ -290,9 +308,13 @@ public class DataService {
     );
 
     if (scheduleForBatch == null) {
-      throw new IllegalStateException(
-        "No schedule definition found for batch: " + batch
-      );
+        logger.warn("No schedule definition found for batch: " + batch + ". Trying with batch 1.");
+        scheduleForBatch = TimetableData.BATCH_SLOTS.get(1);
+        if(scheduleForBatch == null) {
+             throw new IllegalStateException(
+                "No schedule definition found for batch: " + batch
+            );
+        }
     }
 
     for (TimetableData.DayDefinition dayDef : scheduleForBatch) {
