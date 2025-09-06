@@ -21,13 +21,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.portal.academia_portal.dto.AttendanceDetail;
+import com.portal.academia_portal.dto.CalendarEvent;
 import com.portal.academia_portal.dto.CourseInfo;
 import com.portal.academia_portal.dto.CourseSlot;
+import com.portal.academia_portal.dto.DayEvent;
 import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.Mark;
 import com.portal.academia_portal.dto.MarkDetail;
+import com.portal.academia_portal.dto.Month;
 import com.portal.academia_portal.dto.TimetableData;
 import com.portal.academia_portal.dto.TotalAttendance;
 import com.portal.academia_portal.dto.UserInfo;
@@ -426,4 +430,103 @@ public class DataService {
     float totalAttendancePercentage = count == 0 ? 0 : totalPercentage / count;
     return new TotalAttendance(totalAttendancePercentage);
   }
+
+
+private String getCalendarUrl() {
+    LocalDate currentDate = LocalDate.now();
+    int currentYear = currentDate.getYear();
+    int month = currentDate.getMonthValue();
+    String academicYearString;
+    String semesterType;
+
+    if (month >= 1 && month <= 6) {
+        semesterType = "EVEN";
+        academicYearString = (currentYear - 1) + "_" + String.valueOf(currentYear).substring(2);
+    } else {
+        semesterType = "ODD";
+        academicYearString = currentYear + "_" + String.valueOf(currentYear + 1).substring(2);
+    }
+
+    return "https://academia.srmist.edu.in/srm_university/academia-academic-services/page/Academic_Planner_" + academicYearString + "_" + semesterType;
+}
+
+public List<Month> getCalendar(String cookie) {
+    String calendarUrl = getCalendarUrl();
+    
+    String rawHtml = "";
+    try {
+        rawHtml = webClient.get().uri(calendarUrl)
+            .header(HttpHeaders.COOKIE, cookie)
+            .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+            .retrieve()
+            .bodyToMono(String.class)
+            .block();
+    } catch (WebClientResponseException.NotFound ex) {
+        logger.error("Calendar page not found at " + calendarUrl);
+        return new ArrayList<>();
+    }
+
+    if (rawHtml == null || rawHtml.isEmpty()) {
+        throw new IllegalStateException("Did not receive a response from the calendar page: " + calendarUrl);
+    }
+
+    Document doc = Jsoup.parse(rawHtml);
+    Element zmlDiv = doc.selectFirst("div.zc-pb-embed-placeholder-content");
+    if (zmlDiv == null) {
+        logger.warn("Could not find the 'zmlvalue' div on the calendar page.");
+        return new ArrayList<>();
+    }
+
+    String zmlValue = zmlDiv.attr("zmlvalue");
+    if (zmlValue.isEmpty()) {
+        logger.warn("'zmlvalue' attribute is empty.");
+        return new ArrayList<>();
+    }
+
+    Document innerDoc = Jsoup.parse(zmlValue);
+    Element mainTable = innerDoc.selectFirst("table[bgcolor='#FAFCFE']");
+    if (mainTable == null) {
+        logger.warn("Could not find the main calendar table inside 'zmlvalue'.");
+        return new ArrayList<>();
+    }
+
+    List<Month> months = new ArrayList<>();
+    Element headerRow = mainTable.selectFirst("tr");
+    if(headerRow == null) return new ArrayList<>();
+    
+    Elements ths = headerRow.select("th");
+    for (int i = 0; ; i++) {
+        int monthNameThIndex = i * 5 + 2;
+        if (monthNameThIndex >= ths.size()) break;
+        Element monthTh = ths.get(monthNameThIndex);
+        if (monthTh == null) break;
+        String monthName = monthTh.selectFirst("strong").text().trim();
+        if (!monthName.isEmpty()) {
+            months.add(new Month(monthName, new ArrayList<>()));
+        } else {
+            break;
+        }
+    }
+
+    Elements dataRows = mainTable.select("tr:gt(0)");
+    for (Element row : dataRows) {
+        Elements tds = row.select("td");
+        for (int monthIndex = 0; monthIndex < months.size(); monthIndex++) {
+            Month currentMonth = months.get(monthIndex);
+            int offset = monthIndex * 5;
+            if (offset + 3 >= tds.size()) continue;
+
+            String date = tds.get(offset).text().trim();
+            if (date.isEmpty()) continue;
+
+            String day = tds.get(offset + 1).text().trim();
+            String event = tds.get(offset + 2).selectFirst("strong").text().trim();
+            String dayOrder = tds.get(offset + 3).text().trim();
+
+            currentMonth.getDays().add(new DayEvent(date, day, event, dayOrder));
+        }
+    }
+
+    return months;
+}
 }

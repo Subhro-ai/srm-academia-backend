@@ -3,23 +3,21 @@ package com.portal.academia_portal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin; // Import CookieValue
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.portal.academia_portal.dto.AttendanceDetail;
+import com.portal.academia_portal.dto.CalendarEvent;
 import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.MarkDetail;
+import com.portal.academia_portal.dto.Month;
 import com.portal.academia_portal.dto.TotalAttendance;
 import com.portal.academia_portal.dto.UserInfo;
 import com.portal.academia_portal.service.DataService;
 
-import reactor.core.publisher.Mono;
 
 @CrossOrigin(origins = "http://localhost:4200") // allowCredentials no longer needed here
 @RestController
@@ -55,6 +53,11 @@ public class DataController {
     @GetMapping("/total-attendance")
     public TotalAttendance getTotalAttendance(@RequestHeader("X-Academia-Auth") String cookie) {
     return dataService.getTotalAttendancePercentage(cookie);
+    }
+
+    @GetMapping("/calendar")
+    public List<Month> getCalendar(@RequestHeader("X-Academia-Auth") String cookie) {
+        return dataService.getCalendar(cookie);
     }
     
 }
