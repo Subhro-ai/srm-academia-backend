@@ -5,6 +5,8 @@ import com.portal.academia_portal.dto.UserLookupResponse;
 
 import reactor.core.publisher.Mono;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -24,6 +26,7 @@ import java.util.regex.Pattern;
 public class AuthService {
 
     private final WebClient webClient;
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private static final String LOGIN_PAGE_URL = "https://academia.srmist.edu.in/accounts/p/10002227248/signin?hide_fp=true&servicename=ZohoCreator&service_language=en&css_url=/49910842/academia-academic-services/downloadPortalCustomCss/login&dcc=true&serviceurl=https%3A%2F%2Facademia.srmist.edu.in%2Fportal%2Facademia-academic-services%2FredirectFromLogin";
 
 
@@ -107,14 +110,24 @@ public class AuthService {
 
         throw new IllegalStateException("Login failed: Could not retrieve final authentication cookies.");
     }
-    public Mono<Void> logout(String cookie) {
-        String logoutUrl = "https://academia.srmist.edu.in/accounts/logout?serviceurl=https%3A%2F%2Facademia.srmist.edu.in%2F";
-        return webClient.get()
+    public void logout(String cookie) {
+        String logoutUrl = "https://academia.srmist.edu.in/accounts/p/10002227248/logout?servicename=ZohoCreator&serviceurl=https://academia.srmist.edu.in";
+        try {
+            ResponseEntity<Void> response = webClient.get()
                 .uri(logoutUrl)
                 .header(HttpHeaders.COOKIE, cookie)
                 .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
                 .retrieve()
                 .toBodilessEntity()
-                .then();
+                .block();
+            
+            if (response != null && (response.getStatusCode().is2xxSuccessful() || response.getStatusCode().is3xxRedirection())) {
+                logger.info("Successfully initiated logout from Academia server. Status: " + response.getStatusCode());
+            } else {
+                logger.warn("Academia server returned an unexpected status for logout: " + (response != null ? response.getStatusCode() : "N/A"));
+            }
+        } catch (Exception e) {
+            logger.error("An error occurred while trying to log out from Academia server.", e);
+        }
     }
 }

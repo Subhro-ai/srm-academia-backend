@@ -39,10 +39,9 @@ public class AuthController {
         return authService.completeLogin(request);
     }
     @PostMapping("/logout")
-    public Mono<ResponseEntity<Void>> logout(@RequestHeader("X-Academia-Auth") String cookie) {
-        return authService.logout(cookie)
-                .then(Mono.just(ResponseEntity.ok().<Void>build()))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build()));
+    public ResponseEntity<Void> logout(@RequestHeader("X-Academia-Auth") String cookie) {
+        authService.logout(cookie);
+        return ResponseEntity.ok().build();
     }
     
     

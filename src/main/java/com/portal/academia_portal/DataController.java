@@ -9,8 +9,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.portal.academia_portal.dto.AllDataDTO;
 import com.portal.academia_portal.dto.AttendanceDetail;
-import com.portal.academia_portal.dto.CalendarEvent;
+
 import com.portal.academia_portal.dto.DaySchedule;
 import com.portal.academia_portal.dto.MarkDetail;
 import com.portal.academia_portal.dto.Month;
@@ -59,5 +60,9 @@ public class DataController {
     public List<Month> getCalendar(@RequestHeader("X-Academia-Auth") String cookie) {
         return dataService.getCalendar(cookie);
     }
-    
+
+    @GetMapping("/all")
+    public AllDataDTO getAllData(@RequestHeader("X-Academia-Auth") String cookie) {
+        return dataService.getAllData(cookie);
+    }
 }

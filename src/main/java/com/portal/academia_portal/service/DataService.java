@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import com.portal.academia_portal.dto.AllDataDTO;
 import com.portal.academia_portal.dto.AttendanceDetail;
 import com.portal.academia_portal.dto.CalendarEvent;
 import com.portal.academia_portal.dto.CourseInfo;
@@ -152,7 +153,7 @@ public class DataService {
     Document doc = Jsoup.parse(cleanHtml);
     List<MarkDetail> marksList = new ArrayList<>();
     
-    // Find the paragraph that precedes the marks table
+
     Element p = doc.select("p:contains(Internal Marks Detail)").first();
     Element marksTable = null;
     if (p != null) {
@@ -202,18 +203,31 @@ public class DataService {
 
 
             if (!obtainedText.isEmpty() && !maxMarkStr.isEmpty()) {
+              System.out.println("Obtained: " + obtainedText + ", Max: " + maxMarkStr);
                 try {
-                    double obtainedMark = Double.parseDouble(obtainedText);
+                    double obtainedMark;
+                    boolean isPresent;
+                    
+                    if (obtainedText.equalsIgnoreCase("Abs")) {
+                        obtainedMark = 0.0;
+                        isPresent = false;
+                    } else {
+                        obtainedMark = Double.parseDouble(obtainedText);
+                        isPresent = true;
+                    }
+                    
                     double maxMark = Double.parseDouble(maxMarkStr);
 
                     Mark mark = new Mark();
                     mark.setExam(examName);
                     mark.setMaxMark(maxMark);
                     mark.setObtained(obtainedMark);
+                    mark.setPresent(isPresent);
                     individualMarks.add(mark);
                 } catch (NumberFormatException e) {
                     System.err.println("Could not parse mark: " + obtainedText + " or " + maxMarkStr);
                 }
+                markDetail.printDetails();
             }
         }
         markDetail.setMarks(individualMarks);
@@ -528,5 +542,17 @@ public List<Month> getCalendar(String cookie) {
     }
 
     return months;
+}
+public AllDataDTO getAllData(String cookie) {
+    AllDataDTO allData = new AllDataDTO();
+    
+    // Fetch data sequentially to avoid being rate-limited
+    allData.setUserInfo(getUserInfo(cookie));
+    allData.setAttendance(getAttendance(cookie));
+    allData.setMarks(getMarks(cookie));
+    allData.setTimetable(getTimetable(cookie));
+    allData.setCalendar(getCalendar(cookie));
+    
+    return allData;
 }
 }

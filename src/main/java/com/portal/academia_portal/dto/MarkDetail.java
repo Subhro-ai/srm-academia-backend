@@ -18,7 +18,7 @@ public class MarkDetail {
         if (marks != null) {
             System.out.println("PRINTING MARKS");
             for (Mark mark : marks) {
-                System.out.println("  - " + mark.getObtained() + ": " + mark.getMaxMark());
+                System.out.println("  - " + mark.getObtained() + ": " + mark.getMaxMark() + "isprest: " + mark.isPresent());
             }
         } else {
             System.out.println("  No marks available.");
@@ -45,4 +45,5 @@ public class MarkDetail {
     public void setMarks(List<Mark> marks) {
         this.marks = marks;
     }
+
 }

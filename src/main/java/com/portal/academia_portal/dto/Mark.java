@@ -4,6 +4,8 @@ public class Mark {
     private String exam;
     private double obtained;
     private double maxMark;
+    private boolean isPresent;
+
     public String getExam() {
         return exam;
     }
@@ -26,5 +28,14 @@ public class Mark {
 
     public void setMaxMark(double maxMark) {
         this.maxMark = maxMark;
+    }
+
+
+    public boolean isPresent() {
+        return isPresent;
+    }
+
+    public void setPresent(boolean isPresent) {
+        this.isPresent = isPresent;
     }
 }
